@@ -1,7 +1,12 @@
-import { MongoClient } from "mongodb";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
-import sgMail from "@sendgrid/mail";
+// import { MongoClient } from "mongodb";
+// import fetch from "node-fetch";
+// import dotenv from "dotenv";
+// import sgMail from "@sendgrid/mail";
+
+const { MongoClient } = require("mongodb");
+const fetch = require("fetch");
+const dotenv = require("dotenv");
+const sgMail = require("@sendgrid/mail");
 
 dotenv.config();
 
@@ -76,52 +81,54 @@ const company_dict = {
 let updatedItem = [];
 let status = { status: false, msg: "" };
 
-try {
-  const response = await fetch("https://www.levels.fyi/js/salaryData.json");
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.message || "Error pulling salary data from Levels");
-  }
+exports.handler = async (event, context, callback) => {
+  try {
+    const response = await fetch("https://www.levels.fyi/js/salaryData.json");
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || "Error pulling salary data from Levels");
+    }
 
-  data.map((item) => {
-    //removed unwatned columns
-    let { cityid, rowNumber, dmaid, ...removedColumns } = item;
+    data.map((item) => {
+      //removed unwatned columns
+      let { cityid, rowNumber, dmaid, ...removedColumns } = item;
 
-    //converted to number
-    removedColumns = {
-      ...removedColumns,
-      totalyearlycompensation: Number(removedColumns.totalyearlycompensation),
-      yearsofexperience: Number(removedColumns.yearsofexperience),
-      yearsatcompany: Number(removedColumns.yearsatcompany),
-      basesalary: Number(removedColumns.basesalary),
-      stockgrantvalue: Number(removedColumns.stockgrantvalue),
-      bonus: Number(removedColumns.bonus),
-    };
-
-    if (removedColumns.company in company_dict) {
+      //converted to number
       removedColumns = {
         ...removedColumns,
-        company: [company_dict[removedColumns.company]],
+        totalyearlycompensation: Number(removedColumns.totalyearlycompensation),
+        yearsofexperience: Number(removedColumns.yearsofexperience),
+        yearsatcompany: Number(removedColumns.yearsatcompany),
+        basesalary: Number(removedColumns.basesalary),
+        stockgrantvalue: Number(removedColumns.stockgrantvalue),
+        bonus: Number(removedColumns.bonus),
       };
-    }
-    updatedItem.push(removedColumns);
-  });
 
-  addToDatabase().catch(console.dir);
-} catch (error) {
-  status.status = false;
-  status.msg = error;
-  msg.subject = "PURSUIT - FETCHING DATA FAILED";
-  msg.html = `<p>${error}</p>`;
-  await sgMail
-    .send(msg)
-    .then(() => {
-      console.log("Email sent");
-    })
-    .catch((error) => {
-      console.error(error);
+      if (removedColumns.company in company_dict) {
+        removedColumns = {
+          ...removedColumns,
+          company: [company_dict[removedColumns.company]],
+        };
+      }
+      updatedItem.push(removedColumns);
     });
-}
+
+    addToDatabase().catch(console.dir);
+  } catch (error) {
+    status.status = false;
+    status.msg = error;
+    msg.subject = "PURSUIT - FETCHING DATA FAILED";
+    msg.html = `<p>${error}</p>`;
+    await sgMail
+      .send(msg)
+      .then(() => {
+        console.log("Email sent");
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+};
 
 async function addToDatabase() {
   try {
