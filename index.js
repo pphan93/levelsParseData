@@ -1,12 +1,15 @@
-// import { MongoClient } from "mongodb";
-// import fetch from "node-fetch";
-// import dotenv from "dotenv";
-// import sgMail from "@sendgrid/mail";
+import { MongoClient } from "mongodb";
+import fetch from "node-fetch";
+import dotenv from "dotenv";
+import sgMail from "@sendgrid/mail";
 
-const { MongoClient } = require("mongodb");
-const fetch = require("fetch");
-const dotenv = require("dotenv");
-const sgMail = require("@sendgrid/mail");
+// fetch.default;
+// import https from "https";
+
+// const { MongoClient } = require("mongodb");
+// const fetch = require("node-fetch");
+// const dotenv = require("dotenv");
+// const sgMail = require("@sendgrid/mail");
 
 dotenv.config();
 
@@ -80,11 +83,29 @@ const company_dict = {
 
 let updatedItem = [];
 let status = { status: false, msg: "" };
+// let cachedDb = null;
 
-exports.handler = async (event, context, callback) => {
+// async function connectToDatabase() {
+//   if (cachedDb) {
+//     return cachedDb;
+//   }
+//   // Connect to our MongoDB database hosted on MongoDB Atlas
+//   const client = await MongoClient.connect(MONGODB_URI);
+//   // Specify which database we want to use
+//   const db = await client.db("pursuit");
+//   cachedDb = db;
+//   return db;
+// }
+
+export const handler = async (event, context, callback) => {
+  // console.log("test---");
+
   try {
+    console.log(process.env.MONGO_USER);
     const response = await fetch("https://www.levels.fyi/js/salaryData.json");
+    // console.log(response);
     const data = await response.json();
+    // console.log(data);
     if (!response.ok) {
       throw new Error(data.message || "Error pulling salary data from Levels");
     }
@@ -112,9 +133,9 @@ exports.handler = async (event, context, callback) => {
       }
       updatedItem.push(removedColumns);
     });
-
-    addToDatabase().catch(console.dir);
+    await addToDatabase().catch(console.dir);
   } catch (error) {
+    console.log(error);
     status.status = false;
     status.msg = error;
     msg.subject = "PURSUIT - FETCHING DATA FAILED";
@@ -134,6 +155,7 @@ async function addToDatabase() {
   try {
     await client.connect();
     const db = client.db();
+    console.log(db);
     const removedCollection = await db.collection("levels").drop();
     console.log(removedCollection);
     const status = await db.collection("levels").insertMany(updatedItem);
@@ -150,10 +172,11 @@ async function addToDatabase() {
         console.error(error);
       });
   } catch (e) {
+    console.log(e);
     status.status = false;
-    status.msg = error;
+    status.msg = e;
     msg.subject = "PURSUIT - UPDATING DB WITH LEVELS DATA FAILED";
-    msg.html = `<p>${error}</p>`;
+    msg.html = `<p>${e}</p>`;
     await sgMail
       .send(msg)
       .then(() => {
@@ -163,7 +186,9 @@ async function addToDatabase() {
         console.error(error);
       });
   } finally {
+    console.log("Closing");
     await client.close();
-    process.exit(1);
+    process.exit(0);
   }
 }
+// handler();
