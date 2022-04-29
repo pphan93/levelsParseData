@@ -117,7 +117,10 @@ export const handler = async (event, context, callback) => {
       //converted to number
       removedColumns = {
         ...removedColumns,
-        totalyearlycompensation: Number(removedColumns.totalyearlycompensation),
+        //fix the inconsistent in the data, some input is 100000 while other is 100, this will messed up the average, have convert all to 1000
+        totalyearlycompensation: numFormatter(
+          Number(removedColumns.totalyearlycompensation)
+        ),
         yearsofexperience: Number(removedColumns.yearsofexperience),
         yearsatcompany: Number(removedColumns.yearsatcompany),
         basesalary: Number(removedColumns.basesalary),
@@ -189,6 +192,16 @@ async function addToDatabase() {
     console.log("Closing");
     await client.close();
     process.exit(0);
+  }
+}
+
+function numFormatter(num) {
+  if (num >= 10000 && num < 1000000) {
+    return (num / 1000).toFixed(0); // convert to K for number from > 1000 < 1 million
+  } else if (num >= 1000000) {
+    return (num / 1000).toFixed(0); // convert to M for number from > 1 million
+  } else if (num < 1000) {
+    return num; // if value < 1000, nothing to do
   }
 }
 // handler();
